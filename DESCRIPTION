@@ -1,4 +1,4 @@
-Package: SpatialQC
+Package: SpatialQM
 Title: QC metrics and support for In-Situ Spatial data across different platforms
 Version: 0.0.0.9000
 Authors@R: 
@@ -36,7 +36,7 @@ Imports:
     lsa,
     scater,
     SpatialFeatureExperiment
-URL: https://github.com/Center-for-Spatial-OMICs/SpatialQC, https://margery0011.github.io/SpatiaTouchstone/
+URL: https://github.com/Center-for-Spatial-OMICs/SpatialQM, https://margery0011.github.io/SpatiaTouchstone/
 BugReports: https://github.com/Margery0011/SpatiaTouchstone/issues
 Suggests: 
     knitr,
