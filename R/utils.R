@@ -514,8 +514,8 @@ readTxMeta <- function(path, platform){
                                       list.files(path, pattern = "*tx_file.csv.gz")))
     df <- unique(df)
   } else if(platform == "Merscope"){
-    print("Working on support!")
-    stop()
+       df <- data.table::fread(file.path(path,
+                                      list.files(path, pattern = "cell_metadata.csv")))
   } else{
     print("Platform not supported")
     stop()
