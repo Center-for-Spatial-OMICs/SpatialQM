@@ -36,7 +36,7 @@ Imports:
     lsa,
     scater,
     SpatialFeatureExperiment
-URL: https://github.com/Center-for-Spatial-OMICs/SpatialQM
+URL: https://github.com/Center-for-Spatial-OMICs/SpatialQM, https://center-for-spatial-omics.github.io/SpatialQM/
 BugReports: https://github.com/Center-for-Spatial-OMICs/SpatialQM/issues
 Suggests: 
     knitr,

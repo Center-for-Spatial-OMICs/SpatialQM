@@ -1,5 +1,5 @@
 ---
-title: "Introduction to SpatialQC"
+title: "Introduction to SpatialQM"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Introduction to SpatialTouchstone}
@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 
 ```{r setup}
-library(SpatialQC)
+library(SpatialQM)
 ```
 
 ## Xenium as an example 
@@ -44,9 +44,9 @@ It can return a `Seurat` Object by seting the `seurat=TRUE`.
 result_seu <- readSpatial(sample_id = "test1",path="/mnt/scratch1/Touchstone_data/new_data/TOUCHSTONE_EAP_XRS_FFPE_PR_3_UOA_C_R1/",platform = "Xenium",seurat = TRUE)
 print(result_seu)
 ```
-## QC 
+## QM 
 
-We have mutliple QC functions, when using seurat object as the input, it will return a dataframe which can be used to generate plot using our plot functions.
+We have mutliple QM functions, when using seurat object as the input, it will return a dataframe which can be used to generate plot using our plot functions.
 
 
 ```{r getTxPerCell1}
@@ -78,14 +78,14 @@ getTxPerCell_test_seu<- getTxPerCell(platform = "Xenium",seu_obj = result_seu)
 getTxPerCell_test_seu
 ```
 
-## To generate a QC report 
+## To generate a QM report 
 
-It will automatically generate a pdf qc report 
+It will automatically generate a pdf QM report 
 
 
-```{r gerante a QC report}
+```{r gerante a QM report}
 
-# genereateQCreport_table_1<- genereateQCreport_table(seu_obj = result_seu)
+# genereateQMreport_table_1<- genereateQCreport_table(seu_obj = result_seu)
 # genereateQCreport_table_1
 #   sample_id platform ncell entropy_value sparsity_value tx_perarea tx_percell cell_tx_fraction mean_ratio max_ratio
 # 1     test1   Xenium 80939         0.497          0.936  0.8983494   63.88845        0.7115717   2.306417  4.290015

@@ -1,5 +1,5 @@
 ---
-title: "SpatialQC"
+title: "SpatialQM"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{SpatiaTouchstone}
