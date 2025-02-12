@@ -68,7 +68,7 @@ getAllMetrics <- function(df_samples, features = NULL) {
     start.time <- Sys.time()
     print("Calculating Specificity ")
     df_samples$specificityFDR <- NA
-    df_samples$specificityFDR <- mapply(getGlobalFDR, tx_file = df_samples[, 4],
+    df_samples$specificityFDR <- mapply(getGlobalFDR, tx_file = df_samples,
                                         platform = df_samples[, 2], cellSegMeta =  df_samples[, 5],
                                         MoreArgs = list(features = features))
     end.time <- Sys.time()
