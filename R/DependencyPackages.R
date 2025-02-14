@@ -127,7 +127,7 @@ install_github_if_missing("dmcable/RCTD")
 
 #library(InSituType)
 #library(spacexr)
-remotes::install_github('https://github.com/Center-for-Spatial-OMICs/SpatialQC')
+remotes::install_github('https://github.com/Center-for-Spatial-OMICs/SpatialQM')
 
 
 ## still has warnings

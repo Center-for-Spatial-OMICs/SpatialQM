@@ -3258,78 +3258,104 @@ plotMetrics <- function(metrics_list = NULL, PlotAutocorr = T, PlotSparsity = T,
 #' @importFrom BioQC entropy
 #' @importFrom coop sparsity
 #' @export
-generateQCreport_table <- function(seu_obj=NULL, features=NULL, pdfFile="QCReportTable.pdf", sample_id=NULL, path=NULL, platform=NULL) {
-  if (!inherits(seu_obj, "Seurat") && !is.null(seu_obj)) {
-    stop("Input must be a Seurat object or parameters must be provided to load one.")
-  }
+generateQCreport_table <- function(seu_obj = NULL, features = NULL, pdfFile = "QCReportTable.pdf", 
+                                   sample_id = NULL, path = NULL, platform = NULL) {
+    # Load required packages
+    if (!requireNamespace("Seurat", quietly = TRUE)) stop("Package 'Seurat' is required but not installed.")
+    if (!requireNamespace("ggplot2", quietly = TRUE)) stop("Package 'ggplot2' is required but not installed.")
+    if (!requireNamespace("gridExtra", quietly = TRUE)) stop("Package 'gridExtra' is required but not installed.")
+    if (!requireNamespace("BioQC", quietly = TRUE)) stop("Package 'BioQC' is required but not installed.")
+    if (!requireNamespace("coop", quietly = TRUE)) stop("Package 'coop' is required but not installed.")
 
-  # Check if a Seurat object needs to be loaded
-  if (is.null(seu_obj)) {
-    if (is.null(sample_id) || is.null(path) || is.null(platform)) {
-      stop("Missing parameters to load spatial data. Please provide sample_id, path, and platform.")
+    # Ensure the Seurat object is provided
+    if (!inherits(seu_obj, "Seurat") && !is.null(seu_obj)) {
+        stop("Input must be a Seurat object or parameters must be provided to load one.")
     }
-    seu_obj <- readSpatial(sample_id=sample_id, path=path, platform=platform, seurat=TRUE)
-  }
-
-  if (is.null(features)) {
-    features <- rownames(seu_obj)
-  }
-
-  # Extract metrics
-  entropy_value <- BioQC::entropy(as.matrix(seu_obj@assays$RNA$counts))
-  sparsity_value <- coop::sparsity(as.matrix(seu_obj@assays$RNA$counts))
-  ncell <- ncol(seu_obj)
-
-  tx_means <- rowMeans(seu_obj[["RNA"]]$counts[features, ])
-  neg_probe_means <- rowMeans(seu_obj[["ControlProbe"]]$counts)
-  ratio <- log10(tx_means) - log10(mean(neg_probe_means))
-  mean_signal_ratio <- mean(ratio)
-
-  tx_count <- colSums(seu_obj[["RNA"]]$counts[features, ])
-  mean_tx_norm <- mean(tx_count / seu_obj$cell_area)
-  tx_perarea <- mean_tx_norm
-
-  mean_tx <- mean(colSums(seu_obj[["RNA"]]$counts[features, ]))
-  tx_percell <- mean_tx
-
-  max_ratio <- log10(max(tx_means)) - log10(mean(neg_probe_means))
-
-  # prepare result table
-  res <- data.frame(
-      sample_id = unique(seu_obj$sample_id),
-      platform = unique(seu_obj$platform),
-      ncell = ncell,
-      entropy_value = round(entropy_value, digits = 3),
-      sparsity_value = round(sparsity_value, digits = 3),
-      tx_perarea =  tx_perarea,
-      tx_percell = tx_percell,
-      cell_tx_fraction = cell_tx_fraction ,
-      mean_ratio = mean_signal_ratio,
-      max_ratio = max_ratio
-      #max_detection= max_detection,
-
+    
+    # Load Seurat object if not provided
+    if (is.null(seu_obj)) {
+        if (is.null(sample_id) || is.null(path) || is.null(platform)) {
+            stop("Missing parameters to load spatial data. Please provide sample_id, path, and platform.")
+        }
+        seu_obj <- readSpatial(sample_id = sample_id, path = path, platform = platform, seurat = TRUE)
+    }
+    
+    # Ensure features exist
+    if (is.null(features)) {
+        features <- rownames(seu_obj)
+    }
+    if (length(features) == 0) {
+        stop("No features found in Seurat object.")
+    }
+    
+    # Ensure RNA assay exists
+    if (!"RNA" %in% Seurat::Assays(seu_obj)) {
+        stop("RNA assay is missing from Seurat object.")
+    }
+    
+    # Extract counts and ensure it's a matrix
+    counts_matrix <- seu_obj[["RNA"]]$counts
+    if (is.null(dim(counts_matrix))) {
+        stop("Counts matrix is missing in the RNA assay.")
+    }
+    counts_matrix <- as.matrix(counts_matrix)
+    
+    # Ensure selected features exist in the counts matrix
+    common_features <- intersect(features, rownames(counts_matrix))
+    if (length(common_features) == 0) {
+        stop("No matching features found in the RNA counts matrix.")
+    }
+    
+    # Compute QC metrics
+    entropy_value <- BioQC::entropy(as.matrix(counts_matrix))
+    sparsity_value <- coop::sparsity(as.matrix(counts_matrix))
+    ncell <- ncol(seu_obj)
+    
+    tx_means <- rowMeans(counts_matrix[common_features, , drop = FALSE])
+    neg_probe_means <- rowMeans(as.matrix(seu_obj[["ControlProbe"]]$counts))
+    
+    ratio <- log10(tx_means) - log10(mean(neg_probe_means))
+    mean_signal_ratio <- mean(ratio, na.rm = TRUE)
+    
+    tx_count <- colSums(counts_matrix[common_features, , drop = FALSE])
+    mean_tx_norm <- mean(tx_count / seu_obj$cell_area, na.rm = TRUE)
+    tx_perarea <- mean_tx_norm
+    mean_tx <- mean(colSums(counts_matrix[common_features, , drop = FALSE]), na.rm = TRUE)
+    tx_percell <- mean_tx
+    max_ratio <- log10(max(tx_means, na.rm = TRUE)) - log10(mean(neg_probe_means))
+    
+    res <- data.frame(
+        sample_id = unique(seu_obj$sample_id),
+        platform = unique(seu_obj$platform),
+        ncell = ncell,
+        entropy_value = round(entropy_value, digits = 3),
+        sparsity_value = round(sparsity_value, digits = 3),
+        tx_perarea = tx_perarea,
+        tx_percell = tx_percell,
+        mean_ratio = mean_signal_ratio,
+        max_ratio = max_ratio
     )
-
-    Metric_table = data.frame(
-      Metric = c("Entropy", "Sparsity", "Tx per Area","Cell tx Fraction","Mean Singal Ratio","Max Ratio"),
-      Value = c(entropy_value, sparsity_value, tx_perarea,cell_tx_fraction,mean_signal_ratio,max_ratio )
+    
+    Metric_table <- data.frame(
+        Metric = c("Entropy", "Sparsity", "Tx per Area", "Mean Signal Ratio", "Max Ratio"),
+        Value = c(entropy_value, sparsity_value, tx_perarea, mean_signal_ratio, max_ratio)
     )
     Metric_table$Metric <- factor(Metric_table$Metric, levels = Metric_table$Metric)
-
+    
     pdf(pdfFile, width = 12, height = 6)
-
-    p <- ggplot( Metric_table, aes(x = Metric, y = Value)) +
-      geom_point(size = 4) +
-      theme_minimal() +
-      labs(title = "Single Sample Metrics", x = "", y = "Value")
-    res_table <- tableGrob(res, rows = NULL)
-    Metric_table <- tableGrob(Metric_table)
-    grid.arrange(p,  Metric_table, ncol = 2, heights = c(5/6, 1/6))
-    grid.newpage()
-    res_table <- tableGrob(res, rows = NULL)
-    grid.draw(res_table)
+    p <- ggplot2::ggplot(Metric_table, ggplot2::aes(x = Metric, y = Value)) +
+        ggplot2::geom_point(size = 4) + 
+        ggplot2::theme_minimal() +
+        ggplot2::labs(title = "Single Sample Metrics", x = "", y = "Value")
+    
+    res_table <- gridExtra::tableGrob(res, rows = NULL)
+    Metric_table <- gridExtra::tableGrob(Metric_table)
+    
+    gridExtra::grid.arrange(p, Metric_table, ncol = 2, heights = c(5/6, 1/6))
+    grid::grid.newpage()
+    grid::grid.draw(res_table)
+    
     dev.off()
-
     print(res)
     return(res)
-  }
+}
