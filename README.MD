@@ -11,7 +11,7 @@ Spatial omics technologies are revolutionizing how we understand biological tiss
 `remotes::install_github('https://github.com/Center-for-Spatial-OMICs/SpatialQM')`
 
 
-### for dedenpency packages
+### for Dependency Packages
 
 
 For users wanting to use annotation functions in `SpatialQM`, Package `RCTD` & `InSituType` are recommended.
