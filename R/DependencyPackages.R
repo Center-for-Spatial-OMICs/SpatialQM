@@ -42,7 +42,7 @@ install_github_if_missing <- function(repo) {
 
 
 # List of required CRAN packages
-required_cran_packages <- c("dplyr", "ggplot2", "shadowtext", "scales", "cowplot",
+required_cran_packages <- c("Seurat","dplyr", "ggplot2", "shadowtext", "scales", "cowplot",
                             "data.table", "Matrix", "matrixStats", "fs", "gridExtra",
                             "magrittr", "tibble", "lsa")
 

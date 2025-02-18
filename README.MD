@@ -8,13 +8,10 @@ Spatial omics technologies are revolutionizing how we understand biological tiss
 
 ## How to install
 
-`remotes::install_github('https://github.com/Center-for-Spatial-OMICs/SpatialQM')`
+### Install Dependency Packages First 
 
 
-### for Dependency Packages
-
-
-For users wanting to use annotation functions in `SpatialQM`, Package `RCTD` & `InSituType` are recommended.
+For users wanting to use annotation functions in `SpatialQM`, Package `RCTD` & `InSituType` are required.
 
 To install:
 
@@ -57,6 +54,13 @@ F77=/opt/homebrew/bin/gfortran-14
 
 For others, please use our [Rscipts](https://github.com/Center-for-Spatial-OMICs/SpatialQM/blob/main/R/DependencyPackages.R)
 
+
+### To Install 
+
+- Run our R script 
+[Rscipts](https://github.com/Center-for-Spatial-OMICs/SpatialQM/blob/main/R/DependencyPackages.R)
+
+- `remotes::install_github('https://github.com/Center-for-Spatial-OMICs/SpatialQM')`
 
 ## Functions
 
