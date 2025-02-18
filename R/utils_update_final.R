@@ -581,8 +581,11 @@ getPseudobulk <- function(seu_obj, celltype_meta="cell_type") {
 #' @importFrom InSituType insitutypeML
 #' @export
 
-
 annotateData <- function(seu_obj, ref, celltype_meta="cell_type"){
+  if (!requireNamespace("InSituType", quietly = TRUE)) {
+    stop("Package 'InSituType' is required for this function")
+  }
+
   print("Getting pseudobulk for reference")
   ref_mat <- getPseudobulk(ref)
 
@@ -592,9 +595,34 @@ annotateData <- function(seu_obj, ref, celltype_meta="cell_type"){
   query_mat <- seu_obj[["RNA"]]$counts
 
   print("Annotated spatial data")
-  insitutype_res <- InSituType :: insitutypeML(x = t(query_mat),
-                                 neg = colMeans(seu_obj[["ControlProbe"]]$counts),
-                                 reference_profiles = ref_mat)
+  insitutype_res <- InSituType::insitutypeML(
+    x = t(query_mat),
+    neg = colMeans(seu_obj[["ControlProbe"]]$counts),
+    reference_profiles = ref_mat
+  )
+
+  seu_obj$celltype_pred <- insitutype_res$clust
+  return(seu_obj)
+}
+annotateData <- function(seu_obj, ref, celltype_meta="cell_type"){
+  if (!requireNamespace("InSituType", quietly = TRUE)) {
+    stop("Package 'InSituType' is required but not installed. Please install it using `remotes::install_github('Center-for-Spatial-OMICs/InSituType')`.")
+  }
+
+  print("Getting pseudobulk for reference")
+  ref_mat <- getPseudobulk(ref)
+
+  cells_keep <- colnames(seu_obj)[colSums(seu_obj[["RNA"]]$counts) > 10]
+  seu_obj <- subset(seu_obj, cells = cells_keep)
+
+  query_mat <- seu_obj[["RNA"]]$counts
+
+  print("Annotated spatial data")
+  insitutype_res <- InSituType::insitutypeML(
+    x = t(query_mat),
+    neg = colMeans(seu_obj[["ControlProbe"]]$counts),
+    reference_profiles = ref_mat
+  )
 
   seu_obj$celltype_pred <- insitutype_res$clust
   return(seu_obj)
