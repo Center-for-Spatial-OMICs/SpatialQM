@@ -1856,77 +1856,128 @@ getMECR <- function(seu_obj = NULL,
 #' @importFrom scater logNormCounts
 #' @importFrom BiocParallel MulticoreParam
 
-getMorans <- function(seu_obj,
-                      features=NULL){
-  #Requires SingleCellExperiment, SpatialFeatureExperiment, Voyager, scater
-
-  if(is.null(features)){
+getMorans <- function(seu_obj, features = NULL) {
+  # Requires SingleCellExperiment, SpatialFeatureExperiment, Voyager, scater
+  
+  if (is.null(features)) {
     features <- rownames(seu_obj)
-  } else{
-    features <- features
+  } else {
+    features <- intersect(features, rownames(seu_obj)) # Ensure features exist in Seurat object
   }
-
-  #First run for gene-targeting probes
+  
+  if (length(features) == 0) {
+    stop("Error: None of the requested features exist in the Seurat object.")
+  }
+  
+  ### ---- Gene-targeting probes ---- ###
   print("Getting Moran's I for gene-targeting probes")
-  sce <- SingleCellExperiment(list(counts=seu_obj[["RNA"]]$counts[features,]),
-                              colData = seu_obj@meta.data)
+  
+  expr_data <- as.matrix(GetAssayData(seu_obj, layer = "counts", assay = "RNA")[features, , drop = FALSE])
+  valid_cells <- intersect(colnames(expr_data), rownames(seu_obj@meta.data))
+  
+  if (length(valid_cells) == 0) {
+    stop("Error: No valid cells found in the Seurat object for the provided features.")
+  }
+  
+  sce <- SingleCellExperiment(
+    list(counts = expr_data[, valid_cells, drop = FALSE]),
+    colData = seu_obj@meta.data[valid_cells, , drop = FALSE]
+  )
+  
+  if (!"tissue" %in% names(seu_obj@reductions)) {
+    stop("Error: 'tissue' dimensional reduction not found in Seurat object.")
+  }
+  
   colData(sce) <- cbind(colData(sce), Embeddings(seu_obj, 'tissue'))
-  spe <- toSpatialExperiment(sce, spatialCoordsNames = c("Tissue_1",
-                                                         "Tissue_2"))
+  
+  spe <- toSpatialExperiment(sce, spatialCoordsNames = c("Tissue_1", "Tissue_2"))
   sfe <- toSpatialFeatureExperiment(spe)
+  
   sfe <- sfe[, colSums(counts(sfe)) > 0]
+  
   rowData(sfe)$means <- rowMeans(counts(sfe))
   rowData(sfe)$vars <- rowVars(counts(sfe))
+  
   sfe <- scater::logNormCounts(sfe)
-
+  
   colGraph(sfe, "knn20") <- findSpatialNeighbors(sfe, method = "knearneigh",
                                                  dist_type = "idw", k = 20,
                                                  style = "W")
-
+  
   sfe <- Voyager::runMoransI(sfe, colGraphName = "knn20", BPPARAM = MulticoreParam(8))
-
+  
   spatial_cor <- as.data.frame(rowData(sfe))
-
+  
+  # Dynamically detect Moran's I column name
+  morans_col <- colnames(spatial_cor)[grepl("moran", colnames(spatial_cor), ignore.case = TRUE)]
+  
+  if (length(morans_col) == 0) {
+    stop("Error: Moran's I column not found in spatial_cor.")
+  }
+  
   targeting <- data.frame(
     sample_id = unique(seu_obj$sample_id),
     platform = unique(seu_obj$platform),
-    value=spatial_cor[,3], #morans I
+    value = spatial_cor[, morans_col],
     gene = rownames(spatial_cor),
     type = "Gene"
   )
-
-  #Now run for control probes
-  print("Getting Moran's I for non-targeting probes")
-  sce <- SingleCellExperiment(list(counts=seu_obj[["ControlProbe"]]$counts),
-                              colData = seu_obj@meta.data)
-  colData(sce) <- cbind(colData(sce), Embeddings(seu_obj, 'tissue'))
-  spe <- toSpatialExperiment(sce, spatialCoordsNames = c("Tissue_1",
-                                                         "Tissue_2"))
-  sfe <- toSpatialFeatureExperiment(spe)
-  sfe <- sfe[, colSums(counts(sfe)) > 0]
-  rowData(sfe)$means <- rowMeans(counts(sfe))
-  rowData(sfe)$vars <- rowVars(counts(sfe))
-  sfe <- scater::logNormCounts(sfe)
-
-  #Nearest neighbor
-  colGraph(sfe, "knn20") <- findSpatialNeighbors(sfe, method = "knearneigh",
-                                                 dist_type = "idw", k = 20,
-                                                 style = "W")
-  #Moran's I
-  sfe <- Voyager::runMoransI(sfe, colGraphName = "knn20", BPPARAM = MulticoreParam(8))
-
-  spatial_cor <- as.data.frame(rowData(sfe))
-
+  
+  targeting <- targeting[targeting$gene %in% features, , drop = FALSE]
+  
+  ### ---- Control probes ---- ###
+  print("Getting Moran's I for control probes")
+  
+  control_expr_data <- as.matrix(GetAssayData(seu_obj, layer = "counts", assay = "ControlProbe"))
+  valid_cells_control <- intersect(colnames(control_expr_data), rownames(seu_obj@meta.data))
+  
+  if (length(valid_cells_control) == 0) {
+    warning("Warning: No valid cells found for control probes.")
+    return(targeting)
+  }
+  
+  sce_control <- SingleCellExperiment(
+    list(counts = control_expr_data[, valid_cells_control, drop = FALSE]),
+    colData = seu_obj@meta.data[valid_cells_control, , drop = FALSE]
+  )
+  
+  colData(sce_control) <- cbind(colData(sce_control), Embeddings(seu_obj, 'tissue'))
+  
+  spe_control <- toSpatialExperiment(sce_control, spatialCoordsNames = c("Tissue_1", "Tissue_2"))
+  sfe_control <- toSpatialFeatureExperiment(spe_control)
+  
+  sfe_control <- sfe_control[, colSums(counts(sfe_control)) > 0]
+  
+  rowData(sfe_control)$means <- rowMeans(counts(sfe_control))
+  rowData(sfe_control)$vars <- rowVars(counts(sfe_control))
+  
+  sfe_control <- scater::logNormCounts(sfe_control)
+  
+  colGraph(sfe_control, "knn20") <- findSpatialNeighbors(sfe_control, method = "knearneigh",
+                                                         dist_type = "idw", k = 20,
+                                                         style = "W")
+  
+  sfe_control <- Voyager::runMoransI(sfe_control, colGraphName = "knn20", BPPARAM = MulticoreParam(8))
+  
+  spatial_cor_control <- as.data.frame(rowData(sfe_control))
+  
+  # Detect Moran's I column in control probes
+  morans_col_control <- colnames(spatial_cor_control)[grepl("moran", colnames(spatial_cor_control), ignore.case = TRUE)]
+  
+  if (length(morans_col_control) == 0) {
+    warning("Warning: Moran's I column not found for control probes. Returning only gene-targeting results.")
+    return(targeting)
+  }
+  
   control <- data.frame(
     sample_id = unique(seu_obj$sample_id),
     platform = unique(seu_obj$platform),
-    value=spatial_cor[,3], #morans I
-    gene = rownames(spatial_cor),
+    value = spatial_cor_control[, morans_col_control],
+    gene = rownames(spatial_cor_control),
     type = "Control"
   )
-
+  
   res <- rbind(targeting, control)
-
   return(res)
 }
 
