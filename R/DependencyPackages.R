@@ -47,7 +47,7 @@ required_cran_packages <- c("Seurat","dplyr", "ggplot2", "shadowtext", "scales",
                             "magrittr", "tibble", "lsa")
 
 # List of required Bioconductor packages
-required_bioc_packages <- c("SingleCellExperiment", "SpatialExperiment",
+required_bioc_packages <- c("SingleCellExperiment", "SpatialExperiment","SpatialFeatureExperiment","Voyager"
                             "bluster", "BiocParallel", "BioQC",  "NMI", "coop","scater")
 
 # Install CRAN packages if they are missing
@@ -83,19 +83,15 @@ install_github_if_missing <- function(repo, ref = NULL) {
   }
 }
 
-# Install 'SpatialFeatureExperiment' from GitHub if missing
-install_github_if_missing("pachterlab/SpatialFeatureExperiment")
 
-# Install 'Voyager' from GitHub's 'devel' branch if missing
-install_github_if_missing("pachterlab/voyager", ref = "devel")
 # Install `RCTD`
 install_github_if_missing("dmcable/RCTD")
 
 #library(SpatialExperiment)
 #library(Voyager)
+install_github_if_missing("pachterlab/SpatialFeatureExperiment")
 
-
-
+install_github_if_missing("pachterlab/voyager", ref = "devel")
 
 ### Suggest for InSiteType
 #
