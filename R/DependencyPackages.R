@@ -47,8 +47,7 @@ required_cran_packages <- c("Seurat","dplyr", "ggplot2", "shadowtext", "scales",
                             "magrittr", "tibble", "lsa")
 
 # List of required Bioconductor packages
-required_bioc_packages <- c("SingleCellExperiment", "SpatialExperiment","SpatialFeatureExperiment","Voyager"
-                            "bluster", "BiocParallel", "BioQC",  "NMI", "coop","scater")
+required_bioc_packages <- c("SingleCellExperiment", "SpatialExperiment","SpatialFeatureExperiment","Voyager","bluster", "BiocParallel", "BioQC",  "NMI", "coop","scater")
 
 # Install CRAN packages if they are missing
 install_if_missing(required_cran_packages)
