@@ -8,6 +8,8 @@ Spatial omics technologies are revolutionizing how we understand biological tiss
 
 ## How to install
 
+Need R verion >= 4.4.1
+
 ### Install Dependency Packages First 
 
 
