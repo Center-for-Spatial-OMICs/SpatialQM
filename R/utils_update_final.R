@@ -1049,19 +1049,20 @@ getTxPerCell <- function(seu_obj = NULL,
     # Calculate average number of transcripts per cell
     mean_tx <- mean(colSums(exp[features, ]))
 
-    ### Seurat Object ON
-  } else {  # Check if sobj is NOT NULL
-    if (platform == "Xenium") {
-      #print("")
+  ### Seurat Object ON
+  } else {  # If Seurat object is NOT NULL
+    if (platform %in% c("Xenium", "CosMx", "Merscope")) {
+      # Extract expression matrix
+      exp <- as.matrix(GetAssayData(seu_obj, layer = "counts"))
 
-    }
-    if (platform == "CosMx") {
-      #print("")
+      if (is.null(features)) {
+        features <- rownames(exp)
+        # Remove non-specific probes
+        features <- features[!grepl('Unassigned*|NegControl*|BLANK*|Blank*|SystemControl*|NegPrb*', features)]
+      }
 
-    }
-    if (platform == "Merscope") {
-      #print("")
-
+      # Calculate average number of transcripts per cell
+      mean_tx <- mean(colSums(exp[features, ]))
     }
   }
 
