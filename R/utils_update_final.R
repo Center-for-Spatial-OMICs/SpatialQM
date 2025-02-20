@@ -660,12 +660,12 @@ getNcells <- function(seu_obj = NULL,
       expMatDir <- dirname(expMat)
       mtx_bar_feat_path <- fs::dir_ls(expMatDir, recurse = TRUE, type = "file")
 
-      if (grepl('.h5', expMat) == FALSE) {
+      if (!grepl('.h5$', expMat)) {
         mtx_path <- mtx_bar_feat_path[grepl('matrix.mtx.gz$', mtx_bar_feat_path)]
         bar_path <- mtx_bar_feat_path[grepl('barcodes.tsv.gz$', mtx_bar_feat_path)]
         feat_path <- mtx_bar_feat_path[grepl('features.tsv.gz$', mtx_bar_feat_path)]
 
-        # Check if files exist
+        # Check if required files exist
         if (length(mtx_path) == 0 || length(bar_path) == 0 || length(feat_path) == 0) {
           stop("Required files not found.")
         }
@@ -674,7 +674,7 @@ getNcells <- function(seu_obj = NULL,
         cols <- data.table::fread(file.path(bar_path), header = FALSE)
         rows <- data.table::fread(file.path(feat_path), header = FALSE)
         rownames(exp) <- rows$V2  # Gene symbols
-        colnames(exp) <- cols$V1   # Barcodes
+        colnames(exp) <- cols$V1  # Barcodes
         ncell <- ncol(exp)
 
       } else {
@@ -689,34 +689,24 @@ getNcells <- function(seu_obj = NULL,
         exp <- do.call(rbind, exp)
         ncell <- ncol(exp)
       }
-    } else if (platform == "CosMx") {
+    } else if (platform == "CosMx" || platform == "Merscope") {
       ncell <- nrow(data.table::fread(expMat))
-
-    } else if (platform == "Merscope") {
-      ncell <- nrow(data.table::fread(expMat))
-
     }
 
-    ### Seurat Object ON
-  } else {  # Check if sobj is NOT NULL
-    if (platform == "Xenium") {
-      #print("")
+    res <- ncell
 
-    }
-    if (platform == "CosMx") {
-      #print("")
-
-    }
-    if (platform == "Merscope") {
-      #print("")
-
-    }
+  ### Seurat Object ON
+  } else {
+    ncell <- ncol(seu_obj)
+    res <- data.frame(
+      sample_id = if ("sample_id" %in% colnames(seu_obj@meta.data)) unique(seu_obj$sample_id) else NA,
+      platform = if ("platform" %in% colnames(seu_obj@meta.data)) unique(seu_obj$platform) else platform,
+      value = ncell
+    )
   }
 
-  return(ncell)
+  return(res)
 }
-
-
 
 
 #' @details
