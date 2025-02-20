@@ -378,7 +378,7 @@ readSpatial <- function(sample_id, path, platform=NULL, seurat=FALSE){
 
   if(platform == "Xenium"){
     print("Loading Xenium data")
-    seu_obj <- LoadXenium(path, assay = "RNA")
+    seu_obj <- Seurat::LoadXenium(path, assay = "RNA")
     seu_obj@meta.data$sample_id <- sample_id
     seu_obj@meta.data$platform <- platform
     seu_obj@meta.data$path <- path #used in some functions to pull tx data
@@ -486,6 +486,31 @@ readSpatial <- function(sample_id, path, platform=NULL, seurat=FALSE){
   }
 
   return(seu_obj)
+}
+
+
+#' @title Get Transcript Data from Seurat Object
+#' @description Extracts the transcript matrix (TxMatrix) from a Seurat object based on the platform type.
+#' @param seu_obj A Seurat object containing spatial transcriptomics data.
+#' @param platform A character string specifying the platform type. Options: `"Xenium"`, `"CosMx"`, `"Merscope"`.
+#' @return A data frame or matrix containing transcript-level information.
+#' @details
+#' - For **Xenium** and **CosMx**, the transcript data is stored in `seu_obj@misc$TxMatrix`.
+#' - For **Merscope**, the transcript data is retrieved from `seu_obj[["MERFISH"]]@counts`.
+#' @examples
+#' # Example usage:
+#' tx_data_xenium <- get_tx_file(seu_obj_xenium, "Xenium")
+#' tx_data_cosmx <- get_tx_file(seu_obj_cosmx, "CosMx")
+#' tx_data_merscope <- get_tx_file(seu_obj_merscope, "Merscope")
+#' @export
+get_tx_file <- function(seu_obj, platform) {
+  if (platform == "Xenium" || platform == "CosMx") {
+    return(seu_obj@misc$TxMatrix)
+  } else if (platform == "Merscope") {
+    return(seu_obj[["MERFISH"]]@counts)
+  } else {
+    stop("Unsupported platform")
+  }
 }
 
 #' @title readTxMeta
@@ -733,67 +758,80 @@ getGlobalFDR <- function(seu_obj = NULL,
                          tx_file = 'path_to_txFile',
                          cellSegMeta = 'path_to_cellMeta',
                          platform = NULL) {
-  # Initialize variable
-  tx_df <- NULL
+    # Initialize variable
+    tx_df <- NULL
+    
+    ### **Case 1: Use Seurat object if available**
+    if (!is.null(seu_obj)) {
+        tx_df <- get_tx_file(seu_obj, platform)
 
-  ### Seurat Object OFF
-  if (is.null(seu_obj)) {
+        # Ensure data exists
+        if (is.null(tx_df) || nrow(tx_df) == 0) {
+            stop(" Error: The TxMatrix extracted from the Seurat object is empty! Please check if the Seurat object contains transcript data.")
+        }
 
-    if (platform == 'Xenium') {
-      tx_df <- data.table::fread(tx_file, header = TRUE)
-      data.table::setnames(tx_df, "feature_name", "target")
+        print(" Successfully extracted TxMatrix from the Seurat object")
 
-    } else if (platform == "CosMx") {
-      tx_df <- data.table::fread(tx_file, header = TRUE)
+    } else {
+        ### **Case 2: Read from `tx_file` if Seurat object is not provided**
+        tx_df <- data.table::fread(tx_file, header = TRUE)
 
+        # Ensure `feature_name` is renamed to `target`
+        if ("feature_name" %in% colnames(tx_df)) {
+            data.table::setnames(tx_df, "feature_name", "target")
+        }
 
-    } else if (platform == "Merscope") {
-      tx_df <- data.table::fread(tx_file, header = TRUE)
-      tx_df$target <- tx_df$gene
-
+        # Ensure `target` column exists
+        if (!"target" %in% colnames(tx_df)) {
+            stop(" Error: The `target` column is missing. Please check the format of `tx_file`!")
+        }
     }
 
-    # Filter and process data
-    negProbes <- tx_df$target[grep('Neg*|Blank*|BLANK*', tx_df$target)]
-    allGenes <- unique(tx_df[!target %in% negProbes, target])  # List of unique genes (non-control or blank probes) in panel
+    ### **Strictly match negative control probes**
+    negProbes <- tx_df$target[grep('^(Neg|Blank|BLANK)', tx_df$target, ignore.case = TRUE)]
 
-    # Create table with expression per each gene in panel
+    # **Check if negative control probes exist**
+    if (length(negProbes) == 0) {
+        stop(" Error: No negative control probes detected. Please check `tx_file` or the Seurat object!")
+    }
+    print(paste0(" Number of negative control probes: ", length(negProbes)))
+
+    # **Extract all non-negative control genes**
+    allGenes <- unique(tx_df[!target %in% negProbes, target])
+
+    # **Compute gene expression table**
     expTableAll <- tx_df[, .(Count = .N), by = target]
     expTable <- expTableAll[expTableAll$target %in% allGenes, ]
-    expNeg <- sum(expTableAll[expTableAll$target %in% unique(negProbes), ]$Count)  # Sum of all negative control or blank or unassigned barcodes (i.e. non-specific)
+    expNeg <- sum(expTableAll[expTableAll$target %in% unique(negProbes), ]$Count)
 
+    # **Check if `numNeg` is valid**
     numGenes <- length(expTable$target)
     numNeg <- length(expTableAll[expTableAll$target %in% unique(negProbes), ]$target)
 
+    if (numNeg == 0) {
+        stop("Error: The number of negative control probes is 0. FDR calculation cannot proceed!")
+    }
+
+    # **Calculate FDR**
     fdr <- (expNeg / (sum(expTable$Count) + expNeg)) * (numGenes / numNeg) * 1 / 100
 
-    if (is.null(features)) {
-      return(fdr)
-    } else {
-      fdr <- (expNeg / (sum(expTable[expTable$target %in% features, ]$Count) + expNeg)) * (numGenes / numNeg) * 1 / 100
-      return(fdr)
+    if (!is.null(features)) {
+        fdr <- (expNeg / (sum(expTable[expTable$target %in% features, ]$Count) + expNeg)) * (numGenes / numNeg) * 1 / 100
     }
 
-    ### Seurat Object ON
-  } else {  # Check if sobj is NOT NULL
-    if (platform == "Xenium") {
-      #print("")
-
-    }
-    if (platform == "CosMx") {
-      #print("")
-
-    }
-    if (platform == "Merscope") {
-      #print("")
-
+    ### **If Seurat object exists, return as DataFrame**
+    if (!is.null(seu_obj)) {
+        res <- data.frame(
+            sample_id = seu_obj@meta.data$sample_id[1],  # Extract sample ID
+            platform = platform,
+            value = fdr
+        )
+        return(res)
     }
 
-    return()
-
-  }
+    # **If Seurat object is NULL, return numeric FDR**
+    return(fdr)
 }
-
 
 
 #' This function calculates the mean number of transcripts per unit area for specified features (genes) in a Seurat object.
