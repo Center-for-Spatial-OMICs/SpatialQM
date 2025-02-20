@@ -1733,14 +1733,17 @@ getMECR <- function(seu_obj = NULL,
   # We are using a custom marker table. The original publication bases it on
   # scRNA-seq from matched tissue.
 
-  ### Seurat Object OFF
-  if (is.null(seu_obj)) {
+  ### Seurat Object Provided
+  if (!is.null(seu_obj)) {
+    exp <- Seurat::GetAssayData(seu_obj, assay = "RNA", slot = "counts")
 
+  } else {  # Seurat Object Not Provided, Read from Files
+    
     if (platform == 'Xenium') {
       expMatDir <- dirname(expMat)
       mtx_bar_feat_path <- fs::dir_ls(expMatDir, recurse = TRUE, type = "file")
 
-      if (grepl('.h5', expMat) == FALSE) {
+      if (!grepl('.h5', expMat)) {
         mtx_path <- mtx_bar_feat_path[grepl('matrix.mtx.gz$', mtx_bar_feat_path)]
         bar_path <- mtx_bar_feat_path[grepl('barcodes.tsv.gz$', mtx_bar_feat_path)]
         feat_path <- mtx_bar_feat_path[grepl('features.tsv.gz$', mtx_bar_feat_path)]
@@ -1766,97 +1769,56 @@ getMECR <- function(seu_obj = NULL,
         exp <- Read10X_h5_gz(filename = file.path(mtx_h5_path), use.names = TRUE, unique.features = TRUE)
         exp <- do.call(rbind, exp)
       }
-    } else if (platform == "CosMx") {
+
+    } else if (platform %in% c("CosMx", "Merscope")) {
       exp <- data.table::fread(file.path(expMat))
       ## Remove first 2 columns - usually FOV and Cell_ID information
       exp <- exp[, -c(1:2)]
       exp <- t(exp) ## Transposing for consistency - row = genes, column = cells
-
-    } else if (platform == "Merscope") {
-      exp <- data.table::fread(file.path(expMat))
-      ## Remove first 2 columns - usually FOV and Cell_ID information
-      exp <- exp[, -c(1:2)]
-      exp <- t(exp) ## Transposing for consistency - row = genes, column = cells
-
     }
+  }
 
-    # Detect Mouse dataset
-    nMouse_genes <- rownames(exp)[grepl("^[A-Z][a-z0-9]*$", rownames(exp))] %>% length()
-    nGenes_total <- rownames(exp)[!grepl("Codeword|Probe|Blank", rownames(exp))] %>% length()
+  # Detect Mouse dataset
+  nMouse_genes <- sum(grepl("^[A-Z][a-z0-9]*$", rownames(exp)))
+  nGenes_total <- sum(!grepl("Codeword|Probe|Blank", rownames(exp)))
 
-    if (nMouse_genes / nGenes_total >= 0.3) {
-      marker_df <- data.frame(
-        gene = c("EPCAM", "KRT19", "KRT8",
-                 "CD3E", "CD3D", "CD8A", "NKG7",
-                 "MS4A1", "CD79A",
-                 "PECAM1", "CLDN5", "VWF",
-                 "C1QA", "C1QB", "CD14", "FCGR3A", "ITGAX", "ITGAM",
-                 "PDGFRA", "DPT", "COL1A1",
-                 "MYH11", "ACTG2"),
-        cell_type = c("Epithelial", "Epithelial", "Epithelial",
-                      "T", "T", "T", "T",
-                      "B", "B",
-                      "Endo", "Endo", "Endo",
-                      "Macro", "Macro", "Macro", "Macro", "Macro", "Macro",
-                      "Fibro", "Fibro", "Fibro",
-                      "Muscle", "Muscle"))
-      rownames(marker_df) <- marker_df$gene
-      marker_df$gene <- tools::toTitleCase((tolower(marker_df$gene)))
-      rownames(marker_df) <- marker_df$gene
+  marker_df <- data.frame(
+    gene = c("EPCAM", "KRT19", "KRT8",
+             "CD3E", "CD3D", "CD8A", "NKG7",
+             "MS4A1", "CD79A",
+             "PECAM1", "CLDN5", "VWF",
+             "C1QA", "C1QB", "CD14", "FCGR3A", "ITGAX", "ITGAM",
+             "PDGFRA", "DPT", "COL1A1",
+             "MYH11", "ACTG2"),
+    cell_type = c("Epithelial", "Epithelial", "Epithelial",
+                  "T", "T", "T", "T",
+                  "B", "B",
+                  "Endo", "Endo", "Endo",
+                  "Macro", "Macro", "Macro", "Macro", "Macro", "Macro",
+                  "Fibro", "Fibro", "Fibro",
+                  "Muscle", "Muscle"))
+  rownames(marker_df) <- marker_df$gene
 
-    } else {
-      marker_df <- data.frame(
-        gene = c("EPCAM", "KRT19", "KRT8",
-                 "CD3E", "CD3D", "CD8A", "NKG7",
-                 "MS4A1", "CD79A",
-                 "PECAM1", "CLDN5", "VWF",
-                 "C1QA", "C1QB", "CD14", "FCGR3A", "ITGAX", "ITGAM",
-                 "PDGFRA", "DPT", "COL1A1",
-                 "MYH11", "ACTG2"),
-        cell_type = c("Epithelial", "Epithelial", "Epithelial",
-                      "T", "T", "T", "T",
-                      "B", "B",
-                      "Endo", "Endo", "Endo",
-                      "Macro", "Macro", "Macro", "Macro", "Macro", "Macro",
-                      "Fibro", "Fibro", "Fibro",
-                      "Muscle", "Muscle"))
-      rownames(marker_df) <- marker_df$gene
-    }
+  if (nMouse_genes / nGenes_total >= 0.3) {
+    marker_df$gene <- tools::toTitleCase(tolower(marker_df$gene))
+    rownames(marker_df) <- marker_df$gene
+  }
 
-    genes <- intersect(rownames(exp), rownames(marker_df))
-    mtx <- as.matrix(exp[genes, ])
+  genes <- intersect(rownames(exp), rownames(marker_df))
+  mtx <- as.matrix(exp[genes, ])
 
-    coexp.rates <- c()
-    # print(paste0("Marker count: ", length(genes)))
-    if (length(genes) > 25) {
-      genes <- sample(genes, 25)
-    }
+  coexp.rates <- c()
+  if (length(genes) > 25) {
+    genes <- sample(genes, 25)
+  }
 
-    for (g1 in genes) {
-      for (g2 in genes) {
-        if ((g1 != g2) && (g1 > g2) && (marker_df[g1, 'cell_type'] != marker_df[g2, 'cell_type'])) {
-          c1 <- mtx[g1, ]
-          c2 <- mtx[g2, ]
-          coexp.rates <- c(
-            coexp.rates,
-            sum(c1 > 0 & c2 > 0) / sum(c1 > 0 | c2 > 0)) # >0 too liberal of an expression threshold?
-        }
+  for (g1 in genes) {
+    for (g2 in genes) {
+      if ((g1 != g2) && (g1 > g2) && (marker_df[g1, 'cell_type'] != marker_df[g2, 'cell_type'])) {
+        c1 <- mtx[g1, ]
+        c2 <- mtx[g2, ]
+        coexp.rates <- c(coexp.rates, sum(c1 > 0 & c2 > 0) / sum(c1 > 0 | c2 > 0))
       }
-    }
-
-    ### Seurat Object ON
-  } else {  # Check if sobj is NOT NULL
-    if (platform == 'Xenium') {
-      #print("")
-
-    }
-    if (platform == 'CosMx') {
-      #print("")
-
-    }
-    if (platform == 'Merscope') {
-      #print("")
-
     }
   }
 
