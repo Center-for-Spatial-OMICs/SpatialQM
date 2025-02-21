@@ -8,7 +8,11 @@ Spatial omics technologies are revolutionizing how we understand biological tiss
 
 ## How to install
 
-Need R verion >= 4.4.1
+This package is dependent on `Voyager`, please install it first 
+
+```
+BiocManager::install("Voyager")
+```
 
 ### Install Dependency Packages First 
 
