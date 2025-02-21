@@ -39,7 +39,7 @@ Imports:
     sp (>= 2.1.4)
 Depends: 
 	R (>= 4.0.0),
-	SpatialFeatureExperiment (>= 1.7.3),
+	SpatialFeatureExperiment,
 	SpatialExperiment,
 	Voyager
 URL: https://github.com/Center-for-Spatial-OMICs/SpatialQM, https://center-for-spatial-omics.github.io/SpatialQM/

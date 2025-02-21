@@ -47,7 +47,7 @@ required_cran_packages <- c("Seurat","dplyr", "ggplot2", "shadowtext", "scales",
                             "magrittr", "tibble", "lsa")
 
 # List of required Bioconductor packages
-required_bioc_packages <- c("SingleCellExperiment", "SpatialExperiment","SpatialFeatureExperiment","Voyager","bluster", "BiocParallel", "BioQC",  "NMI", "coop","scater")
+required_bioc_packages <- c("SingleCellExperiment","HDF5Array","SpatialExperiment""SpatialFeatureExperiment","Voyager","bluster", "BiocParallel", "BioQC",  "NMI", "coop","scater")
 
 # Install CRAN packages if they are missing
 install_if_missing(required_cran_packages)
@@ -65,7 +65,7 @@ if (!requireNamespace("scater", quietly = TRUE)) {
 # install.packages("devtools")
 
 # Define the function to install GitHub packages if they are not already installed
-install_github_if_missing <- function(repo, ref = NULL) {
+install_github_if_missing <- function(repo, ref = NULL, ...) {
   package_name <- unlist(strsplit(repo, "/"))[2]  # Extracts package name from repo string
   if (!requireNamespace("remotes", quietly = TRUE)) {
     install.packages("remotes")
@@ -75,22 +75,19 @@ install_github_if_missing <- function(repo, ref = NULL) {
       install.packages("devtools")
     # Check if a specific branch/reference is provided
     if (!is.null(ref)) {
-      devtools::install_github(repo, ref = ref)
+      devtools::install_github(repo, ref = ref, ...)
     } else {
-      devtools::install_github(repo)
+      devtools::install_github(repo, ...)
     }
   }
 }
 
-
-# Install `RCTD`
-install_github_if_missing("dmcable/RCTD")
+# Install `RCTD` with vignettes disabled
+install_github_if_missing("dmcable/spacexr", build_vignettes=FALSE)
 
 #library(SpatialExperiment)
 #library(Voyager)
-install_github_if_missing("pachterlab/SpatialFeatureExperiment")
 
-install_github_if_missing("pachterlab/voyager", ref = "devel")
 
 ### Suggest for InSiteType
 #
